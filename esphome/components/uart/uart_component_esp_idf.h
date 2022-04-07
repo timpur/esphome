@@ -23,11 +23,14 @@ class IDFUARTComponent : public UARTComponent, public Component {
   int available() override;
   void flush() override;
 
+  void set_tx_rx_pin(InternalGPIOPin *tx_rx_pin) { this->tx_rx_pin_ = tx_rx_pin; }
+
  protected:
   void check_logger_conflict() override;
   uart_port_t uart_num_;
   uart_config_t get_config_();
   SemaphoreHandle_t lock_;
+  InternalGPIOPin *tx_rx_pin_;
 
   bool has_peek_{false};
   uint8_t peek_byte_;

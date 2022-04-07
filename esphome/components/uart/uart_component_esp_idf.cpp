@@ -1,5 +1,9 @@
 #ifdef USE_ESP_IDF
 
+#include <soc/uart_periph.h>
+#include <driver/gpio.h>
+#include <esp_rom_gpio.h>
+
 #include "uart_component_esp_idf.h"
 #include "esphome/core/application.h"
 #include "esphome/core/defines.h"
@@ -88,12 +92,20 @@ void IDFUARTComponent::setup() {
 
   int8_t tx = this->tx_pin_ != nullptr ? this->tx_pin_->get_pin() : -1;
   int8_t rx = this->rx_pin_ != nullptr ? this->rx_pin_->get_pin() : -1;
+  int8_t tx_rx = this->tx_rx_pin_ != nullptr ? this->tx_rx_pin_->get_pin() : -1;
 
-  err = uart_set_pin(this->uart_num_, tx, rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-  if (err != ESP_OK) {
-    ESP_LOGW(TAG, "uart_set_pin failed: %s", esp_err_to_name(err));
-    this->mark_failed();
-    return;
+  if (tx_rx != -1) {
+    gpio_set_pull_mode(gpio_num_t(tx_rx), GPIO_PULLUP_ONLY);
+    gpio_set_direction(gpio_num_t(tx_rx), GPIO_MODE_INPUT_OUTPUT_OD);
+    esp_rom_gpio_connect_out_signal(tx_rx, uart_periph_signal[this->uart_num_].tx_sig, 0, 0);
+    esp_rom_gpio_connect_in_signal(tx_rx, uart_periph_signal[this->uart_num_].rx_sig, 0);
+  } else {
+    err = uart_set_pin(this->uart_num_, tx, rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+    if (err != ESP_OK) {
+      ESP_LOGW(TAG, "uart_set_pin failed: %s", esp_err_to_name(err));
+      this->mark_failed();
+      return;
+    }
   }
 
   uint32_t invert = 0;

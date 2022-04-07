@@ -30,6 +30,8 @@ from esphome.const import (
 )
 from esphome.core import CORE
 
+CONF_TX_RX_PIN = "tx_rx_pin"
+
 CODEOWNERS = ["@esphome/core"]
 uart_ns = cg.esphome_ns.namespace("uart")
 UARTComponent = uart_ns.class_("UARTComponent")
@@ -65,6 +67,19 @@ def validate_rx_pin(value):
     value = pins.internal_gpio_input_pin_schema(value)
     if CORE.is_esp8266 and value[CONF_NUMBER] >= 16:
         raise cv.Invalid("Pins GPIO16 and GPIO17 cannot be used as RX pins on ESP8266.")
+    return value
+
+
+def validate_tx_rx_pin(value):
+    if not CORE.using_esp_idf:
+        raise cv.Invalid("Single TX and RX pin is only supported in ESP-IDF.")
+    value = pins.internal_gpio_input_pin_schema(value)
+    value[pins.CONF_MODE] = {
+        "input": True,
+        "output": True,
+        "pullup": True,
+        "open_drain": True,
+    }
     return value
 
 
@@ -163,6 +178,7 @@ CONFIG_SCHEMA = cv.All(
             cv.Required(CONF_BAUD_RATE): cv.int_range(min=1),
             cv.Optional(CONF_TX_PIN): pins.internal_gpio_output_pin_schema,
             cv.Optional(CONF_RX_PIN): validate_rx_pin,
+            cv.Optional(CONF_TX_RX_PIN): validate_tx_rx_pin,
             cv.Optional(CONF_RX_BUFFER_SIZE, default=256): cv.validate_bytes,
             cv.Optional(CONF_STOP_BITS, default=1): cv.one_of(1, 2, int=True),
             cv.Optional(CONF_DATA_BITS, default=8): cv.int_range(min=5, max=8),
@@ -175,7 +191,9 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_DEBUG): maybe_empty_debug,
         }
     ).extend(cv.COMPONENT_SCHEMA),
-    cv.has_at_least_one_key(CONF_TX_PIN, CONF_RX_PIN),
+    cv.has_at_least_one_key(CONF_TX_PIN, CONF_RX_PIN, CONF_TX_RX_PIN),
+    cv.has_exactly_one_key(CONF_TX_RX_PIN, CONF_TX_PIN),
+    cv.has_exactly_one_key(CONF_TX_RX_PIN, CONF_RX_PIN),
     validate_invert_esp32,
 )
 
@@ -218,6 +236,9 @@ async def to_code(config):
     if CONF_RX_PIN in config:
         rx_pin = await cg.gpio_pin_expression(config[CONF_RX_PIN])
         cg.add(var.set_rx_pin(rx_pin))
+    if CONF_TX_RX_PIN in config:
+        tx_rx_pin = await cg.gpio_pin_expression(config[CONF_TX_RX_PIN])
+        cg.add(var.set_tx_rx_pin(tx_rx_pin))
     cg.add(var.set_rx_buffer_size(config[CONF_RX_BUFFER_SIZE]))
     cg.add(var.set_stop_bits(config[CONF_STOP_BITS]))
     cg.add(var.set_data_bits(config[CONF_DATA_BITS]))

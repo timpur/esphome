@@ -116,8 +116,13 @@ void HOT Logger::log_message_(int level, const char *tag, int offset) {
     this->hw_serial_->println(msg);
 #endif  // USE_ARDUINO
 #ifdef USE_ESP_IDF
+#ifdef USE_LOGGING_CDC
+    if (uart_num_ == -1)
+      printf("%s\n", msg);
+#else
     uart_write_bytes(uart_num_, msg, strlen(msg));
     uart_write_bytes(uart_num_, "\n", 1);
+#endif
 #endif
   }
 
@@ -174,7 +179,13 @@ void Logger::pre_setup() {
         uart_num_ = UART_NUM_2;
         break;
 #endif
+#if defined(USE_ESP32_VARIANT_ESP32C3) || defined(USE_ESP32_VARIANT_ESP32S2)
+      case UART_SELECTION_CDC:
+        uart_num_ = -1;
+        break;
+#endif
     }
+#ifndef USE_LOGGING_CDC
     uart_config_t uart_config{};
     uart_config.baud_rate = (int) baud_rate_;
     uart_config.data_bits = UART_DATA_8_BITS;
@@ -185,6 +196,7 @@ void Logger::pre_setup() {
     const int uart_buffer_size = tx_buffer_size_;
     // Install UART driver using an event queue here
     uart_driver_install(uart_num_, uart_buffer_size, uart_buffer_size, 10, nullptr, 0);
+#endif
 #endif
 
 #ifdef USE_ARDUINO

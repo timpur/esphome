@@ -1,5 +1,6 @@
 #pragma once
 
+#include "esphome/core/defines.h"
 #include "esphome/core/automation.h"
 #include "esphome/core/component.h"
 #include "esphome/core/helpers.h"
@@ -29,6 +30,9 @@ enum UARTSelection {
 #endif
 #ifdef USE_ESP8266
   UART_SELECTION_UART0_SWAP,
+#endif
+#if defined(USE_ESP32_VARIANT_ESP32C3) || defined(USE_ESP32_VARIANT_ESP32S2)
+  UART_SELECTION_CDC,
 #endif
 };
 
